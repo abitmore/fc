@@ -48,6 +48,15 @@ ELSE( ECC_IMPL STREQUAL openssl )
   ENDIF( ECC_IMPL STREQUAL mixed )
 ENDIF( ECC_IMPL STREQUAL openssl )
 
+find_package(gmp REQUIRED)
+if (GMP_FOUND)
+  include_directories (${GMP_INCLUDE_DIR})
+  include_directories (${GMPXX_INCLUDE_DIR})
+else()
+  set(GMP_LIB "")
+  set(GMPXX_LIB "")
+endif()
+
 # Configure secp256k1-zkp
 if ( WIN32 )
     # autoconf won't work here, hard code the defines
@@ -70,7 +79,7 @@ else ( WIN32 )
     ExternalProject_Add( project_secp256k1
      PREFIX ${CMAKE_CURRENT_BINARY_DIR}/vendor/secp256k1-zkp
      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/secp256k1-zkp
-     CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/secp256k1-zkp/configure --prefix=${CMAKE_CURRENT_BINARY_DIR}/vendor/secp256k1-zkp --with-bignum=no
+     CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/secp256k1-zkp/configure --prefix=${CMAKE_CURRENT_BINARY_DIR}/vendor/secp256k1-zkp --with-bignum=gmp
      BUILD_COMMAND make
      INSTALL_COMMAND true
      BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/vendor/secp256k1-zkp/src/project_secp256k1-build/.libs/libsecp256k1.a
@@ -276,7 +285,7 @@ IF(WIN32)
   # Add /U options to be sure settings specific to dynamic boost link are ineffective
   target_compile_options(fc PUBLIC /EHsc /UBOOST_ALL_DYN_LINK /UBOOST_LINKING_PYTHON /UBOOST_DEBUG_PYTHON)
 ELSE()
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -march=native -O3 -Ofast -flto -ftree-loop-if-convert-stores")
 
   IF(APPLE)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -stdlib=libc++ -Wall")
@@ -284,7 +293,7 @@ ELSE()
     if( NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
       target_compile_options(fc PUBLIC -std=c++11 -Wall -fnon-call-exceptions)
     endif()
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -fnon-call-exceptions")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -fnon-call-exceptions -march=native -O3 -Ofast -flto -ftree-loop-if-convert-stores")
   ENDIF()
 ENDIF()
 
@@ -311,7 +320,7 @@ target_include_directories(fc
 IF(NOT WIN32)
   set(LINK_USR_LOCAL_LIB -L/usr/local/lib)
 ENDIF()
-target_link_libraries( fc PUBLIC ${LINK_USR_LOCAL_LIB} udt ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${RPCRT4} ${CMAKE_DL_LIBS} ${rt_library} ${readline_libraries} ${ECC_LIB} )
+target_link_libraries( fc PUBLIC ${LINK_USR_LOCAL_LIB} udt ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${RPCRT4} ${CMAKE_DL_LIBS} ${rt_library} ${readline_libraries} ${ECC_LIB} gmp )
 
 if(MSVC)
   set_source_files_properties( src/network/http/websocket.cpp PROPERTIES COMPILE_FLAGS "/bigobj" )
